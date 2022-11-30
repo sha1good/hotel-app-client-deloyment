@@ -9,17 +9,20 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./headers.css";
 import { DateRange } from "react-date-range";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import "react-date-range/dist/styles.css"; // main css file
 import "react-date-range/dist/theme/default.css"; // theme css file
 import { format } from "date-fns";
-import {useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom";
+import { SearchContext } from "../../context/SearchContext";
+import { AuthContext } from "../../context/AuthContext";
 
 const Headers = ({ type }) => {
-   const navigate =   useNavigate();
+  const navigate = useNavigate();
   const [openDate, setOpenDate] = useState(false);
-   const [destination, setDestination] = useState("")
-  const [date, setDate] = useState([
+  const [destination, setDestination] = useState("");
+  const { user } = useContext(AuthContext);
+  const [dates, setDates] = useState([
     {
       startDate: new Date(),
       endDate: new Date(),
@@ -43,12 +46,20 @@ const Headers = ({ type }) => {
     });
   };
 
-   const handleSearch = () =>{
-     navigate("/hotels", { state : {destination,date,options}})
-   }
+  const { dispatch } = useContext(SearchContext);
+  
+
+  const handleSearch = () => {
+    dispatch({ type: "NEW_SEARCH", payload: { destination, dates, options } });
+    navigate("/hotels", { state: { destination, dates, options } });
+  };
   return (
     <div className="headers">
-      <div className={ type === "list"? "headerContainer listMode" : "headerContainer"}>
+      <div
+        className={
+          type === "list" ? "headerContainer listMode" : "headerContainer"
+        }
+      >
         <div className="headerList">
           <div className="headerListItem active">
             <FontAwesomeIcon icon={faBed} />
@@ -81,7 +92,7 @@ const Headers = ({ type }) => {
               Get rewarded for your travel. Unlock instance svaings of 10% or
               more with a free sha1booking account
             </p>
-            <button className="headerBtn">Sign in / Register</button>
+            { !user && <button className="headerBtn">Sign in / Register</button>}
             <div className="headerSearch">
               <div className="headerSearchItem">
                 <FontAwesomeIcon icon={faBed} className="headerIcon" />
@@ -89,7 +100,7 @@ const Headers = ({ type }) => {
                   type="text"
                   placeholder="Where are you going?"
                   className="headerSearchItemInput"
-                  onChange={(event) =>setDestination(event.target.value)}
+                  onChange={(event) => setDestination(event.target.value)}
                 />
               </div>
               <div className="headerSearchItem">
@@ -97,16 +108,16 @@ const Headers = ({ type }) => {
                 <span
                   onClick={() => setOpenDate(!openDate)}
                   className="headerSearchText"
-                >{`${format(date[0].startDate, "MM/dd/yyyy")} to ${format(
-                  date[0].endDate,
+                >{`${format(dates[0].startDate, "MM/dd/yyyy")} to ${format(
+                  dates[0].endDate,
                   "MM/dd/yyyy"
                 )}`}</span>
                 {openDate && (
                   <DateRange
                     editableDateInputs={true}
-                    onChange={(item) => setDate([item.selection])}
+                    onChange={(item) => setDates([item.selection])}
                     moveRangeOnFirstSelection={false}
-                    ranges={date}
+                    ranges={dates}
                     className="date"
                     minDate={new Date()}
                   />
@@ -187,7 +198,9 @@ const Headers = ({ type }) => {
                 )}
               </div>
               <div className="headerSearchItem">
-                <button className="headerBtn" onClick={handleSearch}>Search</button>
+                <button className="headerBtn" onClick={handleSearch}>
+                  Search
+                </button>
               </div>
             </div>
           </>

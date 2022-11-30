@@ -10,11 +10,39 @@ import {
   faCircleXmark,
   faLocationDot,
 } from "@fortawesome/free-solid-svg-icons";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import useFetch from "../../hooks/useFetch";
+import { useLocation, useNavigate } from "react-router-dom";
+import { SearchContext } from "../../context/SearchContext";
+import { AuthContext } from "../../context/AuthContext";
+import Reserve from "../../components/Reserve/Reserve";
 
 const Hotel = () => {
+  const location = useLocation();
+  const id = location.pathname.split("/")[2];
   const [sliderNumber, setSliderNumber] = useState(0);
   const [open, setOpen] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
+
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const reactBaseUrl = process.env.REACT_APP_BASE_URL;
+  const { loading, data } = useFetch(`${reactBaseUrl}/hotels/find/${id}`);
+  const { dates, options } = useContext(SearchContext);
+
+  const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+  function dayDifference(date1, date2) {
+    const startDate = new Date(date1);
+    const endDate = new Date(date2);
+    const timeDiff = Math.abs(
+      new Date(endDate.getTime()) - new Date(startDate.getTime())
+    );
+    const diffDays = Math.ceil(timeDiff / MILLISECONDS_PER_DAY);
+    return diffDays;
+  }
+  const days = dayDifference(new Date(dates[0]?.endDate), new Date(dates[0]?.startDate));
+
   const photos = [
     {
       src: "https://cf.bstatic.com/xdata/images/hotel/max1280x900/261707778.jpg?k=56ba0babbcbbfeb3d3e911728831dcbc390ed2cb16c51d88159f82bf751d04c6&o=&hp=1",
@@ -53,95 +81,104 @@ const Hotel = () => {
     setSliderNumber(newSlideNumber);
   };
 
+  const handleReserveButton = () => {
+    if (user) {
+      setOpenModal(true);
+    } else {
+      navigate("/login");
+    }
+  };
+
   return (
     <div>
       <Navbar />
       <Headers type="list" />
-      <div className="hotelContainer">
-        {open && (
-          <div className="slider">
-            <FontAwesomeIcon
-              icon={faCircleXmark}
-              className="close"
-              onClick={() => setOpen(false)}
-            />
-            <FontAwesomeIcon
-              icon={faCircleArrowLeft}
-              className="arrow"
-              onClick={() => handleMove("l")}
-            />
-            <div className="sliderImgWrapper">
-              <img
-                alt=""
-                src={photos[sliderNumber].src}
-                className="sliderImg"
+      {loading ? (
+        "Loading, please wait..."
+      ) : (
+        <div className="hotelContainer">
+          {open && (
+            <div className="slider">
+              <FontAwesomeIcon
+                icon={faCircleXmark}
+                className="close"
+                onClick={() => setOpen(false)}
               />
-            </div>
-            <FontAwesomeIcon
-              icon={faCircleArrowRight}
-              className="arrow"
-              onClick={() => handleMove("r")}
-            />
-          </div>
-        )}
-        <div className="hotelWrapper">
-          <button className="bookNow">Reserve or Book Now</button>
-          <h1 className="hotelTitle">Grand Hotel</h1>
-          <div className="hotelAddress">
-            <FontAwesomeIcon icon={faLocationDot} />
-            <span>69,First-Gate, Ikorodu</span>
-          </div>
-          <span className="hotelDistance">
-            Excellent Location - 500m from center
-          </span>
-          <span className="hotelPriceHighlihts">
-            Book a stay over $200 at this property and get a free airport taxi
-          </span>
-          <div className="hotelImages">
-            {photos.map((photo, i) => (
-              <div className="hotelImgWrapper">
+              <FontAwesomeIcon
+                icon={faCircleArrowLeft}
+                className="arrow"
+                onClick={() => handleMove("l")}
+              />
+              <div className="sliderImgWrapper">
                 <img
-                  onClick={() => handleOpen(i)}
                   alt=""
-                  src={photo.src}
-                  className="hotelImg"
+                  src={
+                    data.photos[sliderNumber]
+                      ? data.photos[sliderNumber]
+                      : photos[sliderNumber].src
+                  }
+                  className="sliderImg"
                 />
               </div>
-            ))}
-          </div>
-          <div className="hotelDetails">
-            <div className="hotelDetailText">
-              <h1 className="hotelTitle">Stay in the heart of City</h1>
-              <p className="hotelDesc">
-                Located a 5-minute walk from St. Florian's Gate in Krakow, Tower
-                Street Apartments has accommodations with air conditioning and
-                free WiFi. The units come with hardwood floors and feature a
-                fully equipped kitchenette with a microwave, a flat-screen TV,
-                and a private bathroom with shower and a hairdryer. A fridge is
-                also offered, as well as an electric tea pot and a coffee
-                machine. Popular points of interest near the apartment include
-                Cloth Hall, Main Market Square and Town Hall Tower. The nearest
-                airport is John Paul II International Kraków–Balice, 16.1 km
-                from Tower Street Apartments, and the property offers a paid
-                airport shuttle service.
-              </p>
+              <FontAwesomeIcon
+                icon={faCircleArrowRight}
+                className="arrow"
+                onClick={() => handleMove("r")}
+              />
             </div>
-            <div className="hotelDetailPrice">
-              <h1>Perfect for a 9-night stay!</h1>
-              <span>
-                Located in the real heart of Krakow, this property has an
-                excellent location score of 9.8!
-              </span>
-              <h2>
-                <b>$945</b> (9 nights)
-              </h2>
-              <button>Reserve or Book Now!</button>
+          )}
+          <div className="hotelWrapper">
+            <button className="bookNow" onClick={handleReserveButton}>Reserve or Book Now</button>
+            <h1 className="hotelTitle">{data.name}</h1>
+            <div className="hotelAddress">
+              <FontAwesomeIcon icon={faLocationDot} />
+              <span>{data.address}</span>
+            </div>
+            <span className="hotelDistance">
+              Excellent Location - {data.distance} from center
+            </span>
+            <span className="hotelPriceHighlihts">
+              Book a stay over ${data.cheapestPrice} at this property and get a
+              free airport taxi
+            </span>
+            <div className="hotelImages">
+              {data && data.photos?.map((photo, i) => (
+                <div className="hotelImgWrapper" key={i}>
+                  <img
+                    onClick={() => handleOpen(i)}
+                    alt=""
+                    src={photo ? photo : photo.src}
+                    className="hotelImg"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="hotelDetails">
+              <div className="hotelDetailText">
+                <h1 className="hotelTitle">{data?.title}</h1>
+                <p className="hotelDesc">{data?.desc}</p>
+              </div>
+              <div className="hotelDetailPrice">
+                <h1>Perfect for a {days}-night stay!</h1>
+                <span>
+                  Located in the real heart of Krakow, this property has an
+                  excellent location score of 9.8!
+                </span>
+                <h2>
+                  <b>${days * data.cheapestPrice * options.room}</b> ({days}{" "}
+                  nights)
+                </h2>
+                <button onClick={handleReserveButton}>
+                  Reserve or Book Now!
+                </button>
+              </div>
             </div>
           </div>
+          <MailList />
+          <Footer />
         </div>
-        <MailList />
-        <Footer />
-      </div>
+      )}
+      {openModal && <Reserve setOpen={setOpenModal} hotelId={id} />}
     </div>
   );
 };
